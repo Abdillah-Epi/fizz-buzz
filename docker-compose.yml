@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${API_PORT:-8080}:8080"
+    networks:
+      - fizz-buzz-network
+
+networks:
+  fizz-buzz-network:
+    driver: bridge
