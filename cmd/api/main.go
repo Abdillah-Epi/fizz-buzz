@@ -24,7 +24,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	app := server.New(cfg)
+	app, err := server.New(cfg)
+	if err != nil {
+		logger.Error("failed to create server", "error", err)
+		os.Exit(1)
+	}
+
+	defer func() {
+		if err := app.Close(); err != nil {
+			logger.Error("failed to close application resources", "error", err)
+		}
+	}()
 
 	server := &http.Server{
 		Addr:              ":8080",
