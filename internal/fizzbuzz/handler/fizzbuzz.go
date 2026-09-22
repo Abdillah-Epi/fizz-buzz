@@ -34,6 +34,10 @@ func (h *FizzBuzzHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		Str1:  request.Str1,
 		Str2:  request.Str2,
 	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	response := dto.FizzBuzzResponse{
 		Values: result.Values,
