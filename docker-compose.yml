@@ -5,12 +5,52 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
-    envirement:
+    environment:
       FIZZBUZZ_MAX_LIMIT: ${FIZZBUZZ_MAX_LIMIT:-10000}
     ports:
       - "${API_PORT:-8080}:8080"
     networks:
       - fizz-buzz-network
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: fizzbuzz-clickhouse
+    env_file:
+      - .env
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT:-9000}:9000"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-fizzbuzz}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-fizzbuzz}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-fizzbuzz}
+
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8123/ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+    networks:
+      - fizz-buzz-network
+
+volumes:
+  clickhouse_data:
+  clickhouse_logs:
 
 networks:
   fizz-buzz-network:
