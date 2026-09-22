@@ -5,6 +5,6 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func fizzbuzzRoutes(r chi.Router) {
-	r.Get("/", handler.FizzBuzzHandler)
+func fizzbuzzRoutes(r chi.Router, fizzBuzzHandler *handler.FizzBuzzHandler) {
+	r.Get("/", fizzBuzzHandler.Generate)
 }
