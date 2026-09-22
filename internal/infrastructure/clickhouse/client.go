@@ -44,12 +44,12 @@ func New(cfg config.ClickHouseConfig) (*Client, error) {
 	defer cancel()
 
 	if err := client.Ping(ctx); err != nil {
-		conn.Close()
+		conn_err := conn.Close()
+		if conn_err != nil {
+			return nil, fmt.Errorf("ping clickhouse: %w close conn: %w", err, conn_err)
+		}
 
-		return nil, fmt.Errorf(
-			"ping clickhouse: %w",
-			err,
-		)
+		return nil, fmt.Errorf("ping clickhouse: %w", err)
 	}
 
 	return client, nil
