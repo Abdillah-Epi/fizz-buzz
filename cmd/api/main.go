@@ -11,17 +11,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Abdillah-Epi/fizz-buzz/internal/router"
+	"github.com/Abdillah-Epi/fizz-buzz/internal/config"
+	"github.com/Abdillah-Epi/fizz-buzz/internal/server"
 )
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	router := router.New()
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	app := server.New(cfg)
 
 	server := &http.Server{
 		Addr:              ":8080",
-		Handler:           router,
+		Handler:           app.Router,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

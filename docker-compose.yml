@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    envirement:
+      FIZZBUZZ_MAX_LIMIT: ${FIZZBUZZ_MAX_LIMIT:-10000}
     ports:
       - "${API_PORT:-8080}:8080"
     networks:

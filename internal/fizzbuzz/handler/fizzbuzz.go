@@ -26,7 +26,8 @@ func (h *FizzBuzzHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	result := h.service.Generate(model.Request{
+
+	result, err := h.service.Generate(model.Request{
 		Int1:  request.Int1,
 		Int2:  request.Int2,
 		Limit: request.Limit,
