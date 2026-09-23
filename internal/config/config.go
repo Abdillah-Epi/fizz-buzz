@@ -52,11 +52,14 @@ func loadClickHouseConfig() (ClickHouseConfig, error) {
 		return ClickHouseConfig{}, fmt.Errorf("load CLICKHOUSE_PORT: %w", err)
 	}
 
-	host := "clickhouse"
+	host := getEnv("CLICKHOUSE_HOST", "clickhouse")
 	database := getEnv("CLICKHOUSE_DB", "fizzbuzz")
 	username := getEnv("CLICKHOUSE_USER", "fizzbuzz")
-	password := getEnv("CLICKHOUSE_PASSWORD", "")
+	password := getEnv("CLICKHOUSE_PASSWORD", "fizzbuzz")
 
+	if host == "" {
+		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_DB must not be empty")
+	}
 	if database == "" {
 		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_DB must not be empty")
 	}

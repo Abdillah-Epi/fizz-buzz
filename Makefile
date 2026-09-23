@@ -1,7 +1,7 @@
 -include .env
 export
 
-DB_URL := clickhouse://$(CLICKHOUSE_HOST):$(CLICKHOUSE_PORT)/$(CLICKHOUSE_DB)?username=$(CLICKHOUSE_USER)&password=$(CLICKHOUSE_PASSWORD)&database=$(CLICKHOUSE_DB)&x-multi-statement=true
+DB_URL := clickhouse://$(CLICKHOUSE_MIGRATION_HOST):$(CLICKHOUSE_PORT)/$(CLICKHOUSE_DB)?username=$(CLICKHOUSE_USER)&password=$(CLICKHOUSE_PASSWORD)&database=$(CLICKHOUSE_DB)&x-multi-statement=true
 
 .PHONY: migrate-up migrate-down migrate-version
 
