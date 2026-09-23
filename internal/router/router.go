@@ -4,12 +4,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/handler"
+	analyticsHandler "github.com/Abdillah-Epi/fizz-buzz/internal/analytics/handler"
+	fizzbuzzHandler "github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/handler"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func New(fizzBuzzHandler *handler.FizzBuzzHandler) http.Handler {
+type RouterHandlers struct {
+	FizzBuzzHandler *fizzbuzzHandler.FizzBuzzHandler
+	StatsHandler    *analyticsHandler.StatsHandler
+}
+
+func New(handlers RouterHandlers) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -18,7 +25,7 @@ func New(fizzBuzzHandler *handler.FizzBuzzHandler) http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	registerRoutes(r, fizzBuzzHandler)
+	registerRoutes(r, handlers)
 
 	return r
 }

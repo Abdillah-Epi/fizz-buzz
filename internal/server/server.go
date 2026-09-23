@@ -2,8 +2,12 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 
+	analyticsHandler "github.com/Abdillah-Epi/fizz-buzz/internal/analytics/handler"
+	"github.com/Abdillah-Epi/fizz-buzz/internal/analytics/repository"
+	analyticSservice "github.com/Abdillah-Epi/fizz-buzz/internal/analytics/service"
 	"github.com/Abdillah-Epi/fizz-buzz/internal/config"
 	"github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/handler"
 	"github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/service"
@@ -16,20 +20,26 @@ type Server struct {
 	ClickHouse *clickhouse.Client
 }
 
-func New(cfg config.Config) (*Server, error) {
+func New(cfg config.Config, logger *slog.Logger) (*Server, error) {
 	clickhouseClient, err := clickhouse.New(cfg.ClickHouse)
 	if err != nil {
 		return nil, fmt.Errorf("create clickhouse client: %w", err)
 	}
 
-	fizzBuzzService := service.NewFizzBuzzService(cfg)
-	fizzBuzzHandler := handler.NewFizzBuzzHandler(
-		fizzBuzzService,
-	)
+	analyticsRepository := repository.NewClickHouseRepository(clickhouseClient)
 
-	appRouter := router.New(
-		fizzBuzzHandler,
-	)
+	analyticsService := analyticSservice.New(analyticsRepository)
+
+	statsHandler := analyticsHandler.NewStatsHandler(analyticsService)
+
+	fizzBuzzService := service.NewFizzBuzzService(cfg)
+	fizzBuzzHandler := handler.NewFizzBuzzHandler(fizzBuzzService, analyticsService, logger)
+
+	handlers := router.RouterHandlers{
+		FizzBuzzHandler: fizzBuzzHandler,
+		StatsHandler:    statsHandler,
+	}
+	appRouter := router.New(handlers)
 
 	return &Server{
 		Router:     appRouter,

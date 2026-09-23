@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	app, err := server.New(cfg)
+	app, err := server.New(cfg, logger)
 	if err != nil {
 		logger.Error("failed to create server", "error", err)
 		os.Exit(1)
