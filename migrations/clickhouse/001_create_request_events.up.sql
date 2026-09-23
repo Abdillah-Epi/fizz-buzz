@@ -1,7 +1,6 @@
 CREATE TABLE request_events
 (
     timestamp DateTime64(3, 'UTC'),
-    request_id UUID,
 
     int1 UInt32,
     int2 UInt32,
