@@ -1,9 +1,19 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
+)
+
+const (
+	defaultMaxLimit       = 10000
+	defaultClickHousePort = 9000
+
+	minPort = 1
+	maxPort = 65535
 )
 
 type Config struct {
@@ -23,19 +33,32 @@ type ClickHouseConfig struct {
 	Password string
 }
 
+// Load builds the configuration from the environment.
+//
+// Deployment-specific values (the ClickHouse connection identity) are required:
+// when one is missing or blank it is reported instead of being silently replaced
+// by a guessed default, so a misconfigured process fails at startup rather than
+// connecting to the wrong database. Only values with a safe default are optional.
+//
+// Every problem is reported at once, so a deployment can be fixed in one pass.
 func Load() (Config, error) {
-	maxLimit, err := getIntEnv("FIZZBUZZ_MAX_LIMIT", 10000)
-	if err != nil {
-		return Config{}, fmt.Errorf("load FIZZBUZZ_MAX_LIMIT: %w", err)
-	}
+	var problems []error
 
-	if maxLimit <= 0 {
-		return Config{}, fmt.Errorf("FIZZBUZZ_MAX_LIMIT must be greater than 0")
+	maxLimit, err := optionalIntEnv("FIZZBUZZ_MAX_LIMIT", defaultMaxLimit)
+	switch {
+	case err != nil:
+		problems = append(problems, err)
+	case maxLimit <= 0:
+		problems = append(problems, fmt.Errorf("FIZZBUZZ_MAX_LIMIT must be greater than 0, got %d", maxLimit))
 	}
 
 	clickHouse, err := loadClickHouseConfig()
 	if err != nil {
-		return Config{}, fmt.Errorf("load clickhouse config: %w", err)
+		problems = append(problems, err)
+	}
+
+	if err := errors.Join(problems...); err != nil {
+		return Config{}, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return Config{
@@ -47,24 +70,38 @@ func Load() (Config, error) {
 }
 
 func loadClickHouseConfig() (ClickHouseConfig, error) {
-	port, err := getIntEnv("CLICKHOUSE_PORT", 9000)
+	var problems []error
+
+	host, err := requiredEnv("CLICKHOUSE_HOST")
 	if err != nil {
-		return ClickHouseConfig{}, fmt.Errorf("load CLICKHOUSE_PORT: %w", err)
+		problems = append(problems, err)
 	}
 
-	host := getEnv("CLICKHOUSE_HOST", "clickhouse")
-	database := getEnv("CLICKHOUSE_DB", "fizzbuzz")
-	username := getEnv("CLICKHOUSE_USER", "fizzbuzz")
-	password := getEnv("CLICKHOUSE_PASSWORD", "fizzbuzz")
+	database, err := requiredEnv("CLICKHOUSE_DB")
+	if err != nil {
+		problems = append(problems, err)
+	}
 
-	if host == "" {
-		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_HOST must not be empty")
+	username, err := requiredEnv("CLICKHOUSE_USER")
+	if err != nil {
+		problems = append(problems, err)
 	}
-	if database == "" {
-		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_DB must not be empty")
+
+	password, err := requiredEnv("CLICKHOUSE_PASSWORD")
+	if err != nil {
+		problems = append(problems, err)
 	}
-	if username == "" {
-		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_USER must not be empty")
+
+	port, err := optionalIntEnv("CLICKHOUSE_PORT", defaultClickHousePort)
+	switch {
+	case err != nil:
+		problems = append(problems, err)
+	case port < minPort || port > maxPort:
+		problems = append(problems, fmt.Errorf("CLICKHOUSE_PORT must be between %d and %d, got %d", minPort, maxPort, port))
+	}
+
+	if err := errors.Join(problems...); err != nil {
+		return ClickHouseConfig{}, err
 	}
 
 	return ClickHouseConfig{
@@ -76,26 +113,25 @@ func loadClickHouseConfig() (ClickHouseConfig, error) {
 	}, nil
 }
 
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-
-	if value == "" {
-		return fallback
+func requiredEnv(key string) (string, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		return "", fmt.Errorf("%s is required and must not be empty", key)
 	}
-	return value
+
+	return value, nil
 }
 
-func getIntEnv(key string, fallback int) (int, error) {
-	value := os.Getenv(key)
-
-	if value == "" {
+func optionalIntEnv(key string, fallback int) (int, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(value) == "" {
 		return fallback, nil
 	}
 
-	result, err := strconv.Atoi(value)
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	if err != nil {
-		return 0, fmt.Errorf("%s must be a valid integer: %w", key, err)
+		return 0, fmt.Errorf("%s must be a valid integer, got %q", key, value)
 	}
 
-	return result, nil
+	return parsed, nil
 }
