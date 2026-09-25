@@ -2,11 +2,14 @@ package service
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	config "github.com/Abdillah-Epi/fizz-buzz/internal/config"
 	model "github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/model"
 )
+
+const MaxDivisor = int64(math.MaxUint32)
 
 type FizzBuzzService struct {
 	MaxLimit int
@@ -23,8 +26,16 @@ func (s *FizzBuzzService) Generate(req model.Request) (model.Result, error) {
 		return model.Result{}, fmt.Errorf("int1 must be greater than 0")
 	}
 
+	if int64(req.Int1) > MaxDivisor {
+		return model.Result{}, fmt.Errorf("int1 must be less than or equal to %d", MaxDivisor)
+	}
+
 	if req.Int2 <= 0 {
 		return model.Result{}, fmt.Errorf("int2 must be greater than 0")
+	}
+
+	if int64(req.Int2) > MaxDivisor {
+		return model.Result{}, fmt.Errorf("int2 must be less than or equal to %d", MaxDivisor)
 	}
 
 	if req.Limit <= 0 {
