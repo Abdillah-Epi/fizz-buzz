@@ -23,9 +23,6 @@ Docker Compose.
 - [Architecture](#architecture)
 - [Project layout](#project-layout)
 - [Database & migrations](#database--migrations)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
-- [Maintenance conventions](#maintenance-conventions)
 
 ---
 
