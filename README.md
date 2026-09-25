@@ -60,18 +60,17 @@ Stop the stack with `docker compose down` (add `-v` to also delete the ClickHous
 All configuration comes from environment variables, loaded by `internal/config` at startup.
 Docker Compose reads them from `.env`; `make` reads the same file via `-include .env`.
 
-Start from the template:
+Start from the template (it already holds working values for local development):
 
 ```bash
 cp .env.example .env
 ```
 
-Then fill it in with concrete values, for example:
-
 ```ini
 API_PORT=8080
 FIZZBUZZ_MAX_LIMIT=10000
 
+CLICKHOUSE_HOST=localhost
 CLICKHOUSE_DB=fizzbuzz
 CLICKHOUSE_USER=fizzbuzz
 CLICKHOUSE_PASSWORD=fizzbuzz
@@ -80,10 +79,24 @@ CLICKHOUSE_HTTP_PORT=8123
 CLICKHOUSE_MIGRATION_HOST=localhost
 ```
 
-| Variable | Read by | Default | Purpose |
-| --- | --- | --- | --- |
-| `FIZZBUZZ_MAX_LIMIT` | API (`internal/config`) | `10000` | Upper bound accepted for the `limit` param |
-| `CLICKHOUSE_MIGRATION_HOST` | Makefile migrations | `localhost` | ClickHouse host **as seen from your machine** |
+| Variable | Required | Default | Read by | Purpose |
+| --- | --- | --- | --- | --- |
+| `CLICKHOUSE_HOST` | yes | — | API | ClickHouse host (`clickhouse` under Compose, `localhost` locally) |
+| `CLICKHOUSE_DB` | yes | — | API | ClickHouse database |
+| `CLICKHOUSE_USER` | yes | — | API | ClickHouse user |
+| `CLICKHOUSE_PASSWORD` | yes | — | API | ClickHouse password |
+| `CLICKHOUSE_PORT` | no | `9000` | API | ClickHouse native protocol port |
+| `FIZZBUZZ_MAX_LIMIT` | no | `10000` | API | Upper bound accepted for the `limit` param |
+| `API_PORT` | no | `8080` | Compose | Host port the API is published on |
+| `CLICKHOUSE_HTTP_PORT` | no | `8123` | Compose | Host port for ClickHouse's HTTP interface |
+| `CLICKHOUSE_MIGRATION_HOST` | no | `localhost` | Makefile | ClickHouse host **as seen from your machine** |
+
+Required values have no safe default, so a missing or blank one is an error rather
+than a silent fallback: the API exits at startup and logs **every** problem at once,
+for example `invalid configuration: CLICKHOUSE_DB is required and must not be empty`.
+That keeps a misconfigured deployment from quietly connecting to the wrong
+database. Only the blank check is strict — `CLICKHOUSE_PORT` and
+`FIZZBUZZ_MAX_LIMIT` fall back to their defaults when unset or empty.
 
 ---
 
@@ -99,8 +112,8 @@ All five query parameters are **required**.
 
 | Param | Type | Rules |
 | --- | --- | --- |
-| `int1` | int | `> 0` — the first divisor |
-| `int2` | int | `> 0` — the second divisor |
+| `int1` | int | `> 0` and `<= 4294967295` — the first divisor |
+| `int2` | int | `> 0` and `<= 4294967295` — the second divisor |
 | `limit` | int | `> 0` and `<= FIZZBUZZ_MAX_LIMIT` |
 | `str1` | string | non-empty — printed for multiples of `int1` |
 | `str2` | string | non-empty — printed for multiples of `int2` |
@@ -116,6 +129,10 @@ curl -s 'http://localhost:8080/api/v1/fizzbuzz?int1=3&int2=5&limit=15&str1=Fizz&
 Invalid input returns `400 Bad Request` with a plain-text message, for example
 `invalid int1`, `limit must be greater than 0`, or
 `limit must be less than or equal to 10000`.
+
+The `4294967295` ceiling on `int1` and `int2` is not arbitrary: `request_events`
+stores the divisors as `UInt32`, so a larger value would be truncated and silently
+merge two different requests into one statistics row.
 
 Every valid request is recorded in `request_events`. **Analytics must never break the
 core endpoint:** if the write fails it is logged and the sequence is still returned.
@@ -215,7 +232,6 @@ infrastructure/clickhouse                       connection lifecycle (open/ping/
 │       ├── dto/                    JSON response shape
 │       └── model/                  Stats, RequestEvent
 ├── migrations/clickhouse/          golang-migrate SQL migrations
-├── script01.sh … script05.sh       sample load generators
 ├── stats.sh                        prints /stats only
 ├── docker-compose.yml / Dockerfile
 ├── Makefile                        migration helpers
