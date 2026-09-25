@@ -58,7 +58,7 @@ func loadClickHouseConfig() (ClickHouseConfig, error) {
 	password := getEnv("CLICKHOUSE_PASSWORD", "fizzbuzz")
 
 	if host == "" {
-		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_DB must not be empty")
+		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_HOST must not be empty")
 	}
 	if database == "" {
 		return ClickHouseConfig{}, fmt.Errorf("CLICKHOUSE_DB must not be empty")
