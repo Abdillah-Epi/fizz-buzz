@@ -191,7 +191,7 @@ func TestGenerateSucceedsWhenAnalyticsFails(t *testing.T) {
 
 	recorder := generate(newTestHandler(repo), validQuery)
 
-	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(http.StatusOK, recorder.Code)
 
 	var body fizzbuzzDto.FizzBuzzResponse
 	require.NoError(json.NewDecoder(recorder.Body).Decode(&body))
