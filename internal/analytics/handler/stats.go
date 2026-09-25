@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Abdillah-Epi/fizz-buzz/internal/analytics/dto"
 	"github.com/Abdillah-Epi/fizz-buzz/internal/analytics/service"
+	apphttp "github.com/Abdillah-Epi/fizz-buzz/internal/http"
 )
 
 type StatsHandler struct {
@@ -21,7 +21,7 @@ func NewStatsHandler(service *service.Service) *StatsHandler {
 func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	stats, err := h.service.GetStats(r.Context())
 	if err != nil {
-		http.Error(w, "failed to get statistics", http.StatusInternalServerError)
+		apphttp.WriteError(w, http.StatusInternalServerError, "failed to get statistics")
 		return
 	}
 
@@ -43,10 +43,5 @@ func (h *StatsHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	apphttp.SendResponse(w, http.StatusOK, response)
 }

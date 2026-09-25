@@ -108,44 +108,44 @@ func TestGenerateRecordsAnalyticsEvent(t *testing.T) {
 
 func TestGenerateRejectsInvalidInput(t *testing.T) {
 	tests := []struct {
-		name     string
-		query    string
-		wantBody string
+		name   string
+		query  string
+		errors []string
 	}{
 		{
-			name:     "missing int1",
-			query:    "int2=5&limit=15&str1=Fizz&str2=Buzz",
-			wantBody: "invalid int1",
+			name:   "missing int1",
+			query:  "int2=5&limit=15&str1=Fizz&str2=Buzz",
+			errors: []string{"invalid int1"},
 		},
 		{
-			name:     "non numeric limit",
-			query:    "int1=3&int2=5&limit=lots&str1=Fizz&str2=Buzz",
-			wantBody: "invalid limit",
+			name:   "non numeric limit",
+			query:  "int1=3&int2=5&limit=lots&str1=Fizz&str2=Buzz",
+			errors: []string{"invalid limit"},
 		},
 		{
-			name:     "zero int2 is rejected by the service",
-			query:    "int1=3&int2=0&limit=15&str1=Fizz&str2=Buzz",
-			wantBody: "int2 must be greater than 0",
+			name:   "zero int2 is rejected by the service",
+			query:  "int1=3&int2=0&limit=15&str1=Fizz&str2=Buzz",
+			errors: []string{"int2 must be greater than 0"},
 		},
 		{
-			name:     "limit above the maximum is rejected by the service",
-			query:    "int1=3&int2=5&limit=101&str1=Fizz&str2=Buzz",
-			wantBody: "limit must be less than or equal to 100",
+			name:   "limit above the maximum is rejected by the service",
+			query:  "int1=3&int2=5&limit=101&str1=Fizz&str2=Buzz",
+			errors: []string{"limit must be less than or equal to 100"},
 		},
 		{
-			name:     "divisor too large for the analytics column is rejected",
-			query:    "int1=4294967296&int2=5&limit=15&str1=Fizz&str2=Buzz",
-			wantBody: "int1 must be less than or equal to 4294967295",
+			name:   "divisor too large for the analytics column is rejected",
+			query:  "int1=4294967296&int2=5&limit=15&str1=Fizz&str2=Buzz",
+			errors: []string{"int1 must be less than or equal to 4294967295"},
 		},
 		{
-			name:     "empty str1 is rejected by the service",
-			query:    "int1=3&int2=5&limit=15&str1=&str2=Buzz",
-			wantBody: "str1 must not be empty",
+			name:   "empty str1 is rejected by the service",
+			query:  "int1=3&int2=5&limit=15&str1=&str2=Buzz",
+			errors: []string{"str1 must not be empty"},
 		},
 		{
-			name:     "empty str2 is rejected by the service",
-			query:    "int1=3&int2=5&limit=15&str1=Fizz&str2=",
-			wantBody: "str2 must not be empty",
+			name:   "empty str2 is rejected by the service",
+			query:  "int1=3&int2=5&limit=15&str1=Fizz&str2=",
+			errors: []string{"str2 must not be empty"},
 		},
 	}
 
@@ -160,7 +160,13 @@ func TestGenerateRejectsInvalidInput(t *testing.T) {
 			recorder := generate(newTestHandler(repo), tt.query)
 
 			assert.Equal(http.StatusBadRequest, recorder.Code)
-			assert.Equal(tt.wantBody+"\n", recorder.Body.String())
+			assert.Equal("application/json", recorder.Header().Get("Content-Type"))
+
+			var body struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.NewDecoder(recorder.Body).Decode(&body))
+			assert.Equal(tt.errors, []string{body.Error})
 			assert.Empty(repo.events, "rejected requests must not be recorded")
 		})
 	}
@@ -198,16 +204,21 @@ func TestGenerateSucceedsWhenAnalyticsFails(t *testing.T) {
 	assert.Len(body.Values, 15)
 }
 
-func TestGenerateReturnsInternalErrorWhenResponseCannotBeWritten(t *testing.T) {
-	t.Parallel()
+func TestGenerateLogsErrorWhenResponseCannotBeWritten(t *testing.T) {
 	assert := assert.New(t)
+
+	previous := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(previous) })
+
+	var logs bytes.Buffer
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
 
 	writer := &failingResponseWriter{header: http.Header{}}
 
 	newTestHandler(&fakeAnalyticsRepository{}).Generate(writer, httptest.NewRequest(http.MethodGet, "/api/v1/fizzbuzz?"+validQuery, nil))
 
-	assert.Equal(http.StatusInternalServerError, writer.status)
-	assert.Contains(writer.body.String(), "failed to encode response")
+	assert.Equal(http.StatusOK, writer.status)
+	assert.Contains(logs.String(), "failed to encode response")
 }
 
 type failingResponseWriter struct {

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -11,6 +10,7 @@ import (
 	dto "github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/dto"
 	model "github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/model"
 	service "github.com/Abdillah-Epi/fizz-buzz/internal/fizzbuzz/service"
+	apphttp "github.com/Abdillah-Epi/fizz-buzz/internal/http"
 )
 
 type FizzBuzzHandler struct {
@@ -31,7 +31,7 @@ func (h *FizzBuzzHandler) Generate(w http.ResponseWriter, r *http.Request) {
 	log := h.logger
 	req, err := getQueryParams(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apphttp.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -43,7 +43,7 @@ func (h *FizzBuzzHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		Str2:  req.Str2,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		apphttp.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -64,10 +64,5 @@ func (h *FizzBuzzHandler) Generate(w http.ResponseWriter, r *http.Request) {
 		Values: result.Values,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
-		return
-	}
+	apphttp.SendResponse(w, http.StatusOK, response)
 }

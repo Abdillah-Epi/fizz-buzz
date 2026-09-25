@@ -166,7 +166,13 @@ func TestGetStatsReturnsInternalErrorOnRepositoryFailure(t *testing.T) {
 	recorder := getStats(t, &fakeRepository{statsErr: errors.New("clickhouse unavailable")})
 
 	assert.Equal(http.StatusInternalServerError, recorder.Code)
-	assert.Equal("failed to get statistics\n", recorder.Body.String())
+	assert.Equal("application/json", recorder.Header().Get("Content-Type"))
+
+	var body struct {
+		Error string `json:"error"`
+	}
+	require.NoError(t, json.NewDecoder(recorder.Body).Decode(&body))
+	assert.Equal("failed to get statistics", body.Error)
 }
 
 func keysOf(m map[string]json.RawMessage) []string {
